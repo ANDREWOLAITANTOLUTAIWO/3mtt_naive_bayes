@@ -180,6 +180,105 @@ plt.show()
 
 <img width="683" height="547" alt="naive_bayes_confusion_matrix" src="https://github.com/user-attachments/assets/89b209ef-4357-450b-b58c-cec80e4653d1" />
 
+# Naive Bayes Assumptions
+
+The Naive Bayes classifier operates under a fundamental principle called the "Independence Assumption" (also known as conditional independence). It assumes that all features are independent of each other, given the class label. In simpler terms, it believes that the presence or absence of one feature does not affect the presence or absence of any other feature, as long as we know the outcome (e.g., whether a player will have a long career or not).
+
+Let's break it down:
+
+Formal Statement: P(Feature1, Feature2 | Class) = P(Feature1 | Class) * P(Feature2 | Class)
+Realism for Basketball Stats
+For basketball statistics, the independence assumption is often unrealistic and frequently violated. As you rightly pointed out with the example of "points" and "minutes played", many basketball statistics are highly correlated. Here's why:
+
+Correlation Between Points and Minutes Played: A player who plays more minutes (Feature 1) is inherently going to have more opportunities to score points (Feature 2). Therefore, points and minutes played are not independent. If you know a player played a high number of minutes, you can reasonably expect their points total to be higher, regardless of their career longevity.
+
+Other Examples of Interdependence in Basketball Stats:
+
+Field Goals Made (FGM) and Field Goals Attempted (FGA): A player cannot make a field goal without attempting one. These are directly linked.
+Rebounds (REB) and Minutes Played (MIN): More minutes generally lead to more opportunities for rebounds.
+Assists (AST) and Turnover (TOV): These often come from similar ball-handling situations; players with high usage rates might have both high assists and high turnovers.
+Offensive Rebounds (OREB) and Defensive Rebounds (DREB): While distinct, a player's overall rebounding prowess often means they excel at both.
+Impact on Naive Bayes Model
+Despite this unrealistic assumption, Naive Bayes models can still perform surprisingly well in practice. However, violating the independence assumption can lead to a few issues:
+
+Suboptimal Probability Estimates: While the classification might still be accurate (predicting the correct class), the probability scores that the model outputs might be overconfident or skewed because it's multiplying independent probabilities when they should be conditionally dependent.
+Reduced Performance: In cases of strong feature dependencies, other models that explicitly account for feature relationships (like Logistic Regression, SVMs, or tree-based models) might outperform Naive Bayes.
+In our current dataset, we've already seen evidence of this with features like fgm, fga, pts, fta, 3pa, and reb being highly correlated. While we dropped some of these due to multicollinearity, the underlying statistical reality in basketball data remains that many metrics are interconnected. Therefore, when using Gaussian Naive Bayes, we should be mindful that its strong independence assumption is likely not met, which could affect the interpretation of its probability outputs and potentially its predictive power compared to models that handle feature dependencies better.
+
+## Identifying Influential Features in Gaussian Naive Bayes
+
+Unlike models such as Linear Regression (which uses coefficients) or tree-based models (which use impurity-based importance), Gaussian Naive Bayes doesn't directly output a 'feature importance' score. Instead, its predictions are driven by the estimated mean and variance of each feature within each class.
+
+For a Gaussian Naive Bayes model, features that are most influential in discriminating between classes (e.g., long vs. short career) are typically those that exhibit:
+
+1.  **Larger differences in means between the classes**: If the average value of a feature is significantly different for players with long careers compared to those with short careers, that feature is highly indicative.
+2.  **Smaller variances within each class**: If a feature's values are tightly clustered around its mean within each class, it provides a more consistent signal for that class.
+
+### Interpreting Feature Influence from Model Parameters
+
+To identify potentially influential features, one would typically inspect the `theta_` (means) and `var_` (variances) attributes of the `GaussianNB` model:
+
+*   `gnb.theta_`: Contains the mean of each feature per class.
+*   `gnb.var_`: Contains the variance of each feature per class.
+
+By comparing these values, a scouting department could gain insights:
+
+*   **Example**: If `total_points` has a much higher mean for `target_5yrs=1` than for `target_5yrs=0`, it suggests that players who score more points tend to have longer careers. If the variance for `total_points` within each group is small, it implies this trend is consistent.
+
+**Actionable Insight for Scouting**: While not a direct ranking, analyzing these parameters can help scouts understand which statistical profiles are most characteristic of players likely to achieve longevity according to the model. Features with a clear separation in means between the '0' and '1' classes, especially when combined with low variance within those classes, would be considered highly influential.
+
+# Get feature names from X_train
+feature_names = X_train.columns
+
+# Get the means (theta_) and variances (var_) for each class
+# gnb.theta_ has shape (n_classes, n_features)
+# gnb.var_ has shape (n_classes, n_features)
+means_class_0 = gnb.theta_[0] # Means for class 0 (did not play 5+ years)
+means_class_1 = gnb.theta_[1] # Means for class 1 (played 5+ years)
+
+vars_class_0 = gnb.var_[0] # Variances for class 0
+vars_class_1 = gnb.var_[1] # Variances for class 1
+
+# Create a DataFrame for easier inspection
+feature_influence_df = pd.DataFrame({
+    'Feature': feature_names,
+    'Mean_Class_0': means_class_0,
+    'Mean_Class_1': means_class_1,
+    'Var_Class_0': vars_class_0,
+    'Var_Class_1': vars_class_1
+})
+
+# Calculate the absolute difference in means between the two classes
+feature_influence_df['Abs_Diff_Means'] = abs(feature_influence_df['Mean_Class_1'] - feature_influence_df['Mean_Class_0'])
+
+# Sort by absolute difference in means to see the most influential features
+feature_influence_df = feature_influence_df.sort_values(by='Abs_Diff_Means', ascending=False).reset_index(drop=True)
+
+print("Most Influential Features based on Gaussian Naive Bayes Parameters:")
+display(feature_influence_df)
+
+Find the output table here - https://colab.research.google.com/drive/1U5q_dfNjrrxXMDAndUDozV1b8t8Me9Zz#scrollTo=e076bedb&fullscreenOutput=true
+
+## Interpreting Feature Influence for Scouting
+
+The table above presents the estimated mean and variance for each feature, separated by whether a player played 5+ years (`Class 1`) or not (`Class 0`), and a ranking by the absolute difference in these means.
+
+### How to Read This Table:
+
+*   **`Abs_Diff_Means`**: This is the primary indicator of influence. A larger absolute difference means that the average value of that feature varies significantly between players with long careers and those with short careers. These features are strong discriminators according to the model.
+*   **`Mean_Class_0` / `Mean_Class_1`**: These values tell us the typical level of a statistic for each group. For instance, if `Mean_Class_1` is much higher than `Mean_Class_0` for a feature, it suggests that players with higher values in that statistic tend to have longer careers.
+*   **`Var_Class_0` / `Var_Class_1`**: Lower variance within a class indicates that the feature's values are tightly clustered around the mean for that group, making the mean a more reliable representation for that class.
+
+### Scouting Insights:
+
+By examining the features with the largest `Abs_Diff_Means`, a scouting department can gain valuable insights into which player statistics are most predictive of career longevity according to this model. For example:
+
+*   If `total_points` has a large `Abs_Diff_Means` and `Mean_Class_1` is higher, it suggests that **players who score more points tend to play longer in the NBA**.
+*   If `ast` (assists) also shows a significant difference, and `Mean_Class_1` is higher, it indicates **better playmaking is associated with longevity**.
+
+This analysis helps to understand the statistical profile of a player that the model deems more likely to have a longer NBA career. It can guide scouts to focus on these particular metrics when evaluating prospects, complementing their qualitative assessments.
+
+
 ## Identifying Influential Features in Gaussian Naive Bayes
 
 Unlike models such as Linear Regression (which uses coefficients) or tree-based models (which use impurity-based importance), Gaussian Naive Bayes doesn't directly output a 'feature importance' score. Instead, its predictions are driven by the estimated mean and variance of each feature within each class.
