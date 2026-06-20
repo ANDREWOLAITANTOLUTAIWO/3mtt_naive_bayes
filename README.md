@@ -227,19 +227,19 @@ By comparing these values, a scouting department could gain insights:
 
 **Actionable Insight for Scouting**: While not a direct ranking, analyzing these parameters can help scouts understand which statistical profiles are most characteristic of players likely to achieve longevity according to the model. Features with a clear separation in means between the '0' and '1' classes, especially when combined with low variance within those classes, would be considered highly influential.
 
-# Get feature names from X_train
+#### Get feature names from X_train
 feature_names = X_train.columns
 
-# Get the means (theta_) and variances (var_) for each class
-# gnb.theta_ has shape (n_classes, n_features)
-# gnb.var_ has shape (n_classes, n_features)
+#### Get the means (theta_) and variances (var_) for each class
+#### gnb.theta_ has shape (n_classes, n_features)
+#### gnb.var_ has shape (n_classes, n_features)
 means_class_0 = gnb.theta_[0] # Means for class 0 (did not play 5+ years)
 means_class_1 = gnb.theta_[1] # Means for class 1 (played 5+ years)
 
 vars_class_0 = gnb.var_[0] # Variances for class 0
 vars_class_1 = gnb.var_[1] # Variances for class 1
 
-# Create a DataFrame for easier inspection
+#### Create a DataFrame for easier inspection
 feature_influence_df = pd.DataFrame({
     'Feature': feature_names,
     'Mean_Class_0': means_class_0,
@@ -248,10 +248,10 @@ feature_influence_df = pd.DataFrame({
     'Var_Class_1': vars_class_1
 })
 
-# Calculate the absolute difference in means between the two classes
+#### Calculate the absolute difference in means between the two classes
 feature_influence_df['Abs_Diff_Means'] = abs(feature_influence_df['Mean_Class_1'] - feature_influence_df['Mean_Class_0'])
 
-# Sort by absolute difference in means to see the most influential features
+#### Sort by absolute difference in means to see the most influential features
 feature_influence_df = feature_influence_df.sort_values(by='Abs_Diff_Means', ascending=False).reset_index(drop=True)
 
 print("Most Influential Features based on Gaussian Naive Bayes Parameters:")
